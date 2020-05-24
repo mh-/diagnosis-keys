@@ -1,4 +1,5 @@
 from lib.conversions import *
+from lib.crypto import *
 import TemporaryExposureKeyExport_pb2
 from zipfile import ZipFile
 import datetime
@@ -47,3 +48,7 @@ for tek in tek_keys_export.keys:
            get_string_from_datetime(get_local_datetime(get_datetime_from_utc_timestamp(get_timestamp_from_interval(
                tek.rolling_start_interval_number+tek.rolling_period)))),
            tek.rolling_start_interval_number, tek.rolling_period))
+    print("     RPIs: ", end="")
+    for rpi in get_rpis(derive_rpi_key(tek.key_data), tek.rolling_start_interval_number, tek.rolling_period):
+        print("%s " % rpi.hex(), end="")
+    print()
