@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
+from lib.diagnosis_keys import *
 from lib.conversions import *
 from lib.crypto import *
-import TemporaryExposureKeyExport_pb2
-from zipfile import ZipFile
 import argparse
 
 parser = argparse.ArgumentParser(description="Exposure Notification Diagnosis Key Parser.")
@@ -14,42 +13,26 @@ args = parser.parse_args()
 file_name = args.diagnosiskeys
 
 print("Exposure Notification Diagnosis Key Parser")
-print("This script parses published Diagnosis Keys.")
+print("This script parses published Diagnosis Keys.\n")
 # see https://github.com/google/exposure-notifications-server/tree/master/examples/export
 
-# The binary format file consists of a 16 byte header, containing "EK Export v1​" right padded with whitespaces in UTF-8
-label = "EK Export v1"
-header_str = label + ' ' * (16-len(label))
-header = header_str.encode("UTF-8")
-
-zip_file = ZipFile(file_name)
-export_bin = zip_file.read("export.bin")
-
-if not export_bin[:len(header)] == header:
-    print("ERROR: export.bin (extracted from %s) does not start with '%s'" % (file_name, header_str))
-    exit(1)
-
-tek_keys_export = TemporaryExposureKeyExport_pb2.TemporaryExposureKeyExport()
-tek_keys_export.ParseFromString(export_bin[len(header):])
-
-# print(tek_keys_export)
-
+dk = DiagnosisKeys(file_name)
 print("File '%s' read." % file_name)
 
-start_timestamp_utc = get_datetime_from_utc_timestamp(tek_keys_export.start_timestamp)
-end_timestamp_utc = get_datetime_from_utc_timestamp(tek_keys_export.end_timestamp)
+start_timestamp_utc = dk.get_upload_start_timestamp()
+end_timestamp_utc = dk.get_upload_end_timestamp()
 print("- Time window: %s - %s" % (get_string_from_datetime(get_local_datetime(start_timestamp_utc)),
                                   get_string_from_datetime(get_local_datetime(end_timestamp_utc))))
-print("- Region: %s" % tek_keys_export.region)
-print("- Batch: %d of %d" % (tek_keys_export.batch_num, tek_keys_export.batch_size))
+print("- Region: %s" % dk.get_region())
+print("- Batch: %d of %d" % (dk.get_batch_num(), dk.get_batch_size()))
 
-for signature_info in tek_keys_export.signature_infos:
+for signature_info in dk.get_signature_infos():
     print("- Signature Info:")
     print(signature_info)
 
 print("TEKs:")
 i = 0
-for tek in tek_keys_export.keys:
+for tek in dk.get_keys():
     i += 1
     print("%3d: TEK: %s, Transmission Risk Level: %d, Time: %s - %s (%d, %d)" %
           (i, tek.key_data.hex(), tek.transmission_risk_level,
