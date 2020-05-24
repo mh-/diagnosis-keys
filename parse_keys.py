@@ -1,11 +1,21 @@
+#!/usr/bin/env python3
+
 from lib.conversions import *
 from lib.crypto import *
 import TemporaryExposureKeyExport_pb2
 from zipfile import ZipFile
-import datetime
+import argparse
 
-file_name = "testExport-2-records-1-of-1.zip"
-# file_name = "testExport-450-records-1-of-5.zip"
+parser = argparse.ArgumentParser(description="Exposure Notification Diagnosis Key Parser.")
+parser.add_argument("-d", "--diagnosiskeys", type=str, default="testExport-2-records-1-of-1.zip",
+                    help="file name of the Diagnosis Keys .zip file")
+args = parser.parse_args()
+
+file_name = args.diagnosiskeys
+
+print("Exposure Notification Diagnosis Key Parser")
+print("This script parses published Diagnosis Keys.")
+# see https://github.com/google/exposure-notifications-server/tree/master/examples/export
 
 # The binary format file consists of a 16 byte header, containing "EK Export v1​" right padded with whitespaces in UTF-8
 label = "EK Export v1"
