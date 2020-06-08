@@ -30,7 +30,7 @@ def encrypt_rpi(rpi_key, interval_number):
     return cipher.encrypt(padded_data)
 
 
-def get_rpis(rpi_key, interval_number, interval_count):
+def create_list_of_rpis_for_interval_range(rpi_key, interval_number, interval_count):
     rpis = []
     cipher = AES.new(rpi_key, AES.MODE_ECB)
     padded_data_template = "EN-RPI".encode("UTF-8") + bytes([0x00] * 6)

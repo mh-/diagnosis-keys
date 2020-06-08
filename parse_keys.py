@@ -53,7 +53,8 @@ for tek in dk.get_keys():
            tek.rolling_start_interval_number, tek.rolling_period))
 
     if read_rpi_file:
-        for diagnosis_rpi in get_rpis(derive_rpi_key(tek.key_data), tek.rolling_start_interval_number, tek.rolling_period):
+        for diagnosis_rpi in create_list_of_rpis_for_interval_range(derive_rpi_key(tek.key_data),
+                                                                    tek.rolling_start_interval_number, tek.rolling_period):
             # print(diagnosis_rpi, end='')
             if diagnosis_rpi in scanned_rpis.rpis_dict:
                 print("FOUND MATCH!")
