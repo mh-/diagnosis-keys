@@ -3,8 +3,8 @@ Tools for working with Diagnosis Keys from the COVID-19 Exposure Notification / 
 
 ## Installation
     % git clone https://github.com/mh-/diagnosis-keys
-    $ cd diagnosis-keys
-    $ pip3 install -r requirements.txt
+    % cd diagnosis-keys
+    % pip3 install -r requirements.txt
 
 ## Use
 ```
