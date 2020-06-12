@@ -6,7 +6,8 @@ from lib.conversions import *
 from lib.crypto import *
 import argparse
 
-parser = argparse.ArgumentParser(description="Exposure Notification Diagnosis Key Parser.")
+parser = argparse.ArgumentParser(description="Exposure Notification Diagnosis Key Parser.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-d", "--diagnosiskeys", type=str, default="testExport-2-records-1-of-1.zip",
                     help="file name of the Diagnosis Keys .zip file")
 parser.add_argument("-r", "--rpis", type=str, default="",
