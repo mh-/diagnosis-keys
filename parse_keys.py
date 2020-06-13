@@ -2,21 +2,33 @@
 
 from lib.diagnosis_keys import *
 from lib.scanned_rpis import *
+from lib.rpis_in_db import *
 from lib.conversions import *
 from lib.crypto import *
 import argparse
+import plyvel
+import struct
+import lib.contact_records_pb2
 
 parser = argparse.ArgumentParser(description="Exposure Notification Diagnosis Key Parser.",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-d", "--diagnosiskeys", type=str, default="testExport-2-records-1-of-1.zip",
                     help="file name of the Diagnosis Keys .zip file")
+parser.add_argument("-c", "--contactrecords", type=str, default="",
+                    help="directory name of a contact record LevelDB (e.g. app_contact-tracing-contact-record-db/)")
 parser.add_argument("-r", "--rpis", type=str, default="",
-                    help="file name of the Scanned RPIs .csv file")
+                    help="file name of a Scanned RPIs .csv file")
+parser.add_argument("-s", "--short", action="store_true",
+                    help="show only one scan per match")
+parser.add_argument("-l", "--localtime", action="store_true",
+                    help="display timestamps in local time (otherwise the default is UTC)")
 args = parser.parse_args()
 
 dk_file_name = args.diagnosiskeys
 rpi_file_name = args.rpis
 read_rpi_file = (rpi_file_name != "")
+contactrecord_dir_name = args.contactrecords
+read_contact_record_db = (contactrecord_dir_name != "")
 
 print("Exposure Notification Diagnosis Key Parser")
 print("This script parses published Diagnosis Keys.\n")
@@ -25,15 +37,23 @@ print("This script parses published Diagnosis Keys.\n")
 dk = DiagnosisKeys(dk_file_name)
 print("File '%s' read." % dk_file_name)
 
+contactrecord_db = None
+if read_contact_record_db:
+    contactrecord_db = plyvel.DB(contactrecord_dir_name)
+    rpis_in_db = RPIinLevelDB(contactrecord_db)
+
 scanned_rpis = None
 if read_rpi_file:
     scanned_rpis = ScannedRPIs(rpi_file_name)
     print("File '%s' read." % rpi_file_name)
 
-start_timestamp_utc = dk.get_upload_start_timestamp()
-end_timestamp_utc = dk.get_upload_end_timestamp()
-print("- Time window: %s - %s" % (get_string_from_datetime(get_local_datetime(start_timestamp_utc)),
-                                  get_string_from_datetime(get_local_datetime(end_timestamp_utc))))
+start_timestamp = dk.get_upload_start_timestamp()
+end_timestamp = dk.get_upload_end_timestamp()
+if args.localtime:
+    start_timestamp = get_local_datetime(start_timestamp)
+    end_timestamp = get_local_datetime(end_timestamp)
+print("- Time window: %s - %s" % (get_string_from_datetime(start_timestamp),
+                                  get_string_from_datetime(end_timestamp)))
 print("- Region: %s" % dk.get_region())
 print("- Batch: %d of %d" % (dk.get_batch_num(), dk.get_batch_size()))
 
@@ -41,22 +61,69 @@ for signature_info in dk.get_signature_infos():
     print("- Signature Info:")
     print(signature_info)
 
-print("TEKs:")
+print("Diagnosis Keys:")
 i = 0
 for tek in dk.get_keys():
     i += 1
-    print("%3d: TEK: %s, Transmission Risk Level: %d, Time: %s - %s (%d, %d)" %
+    start_timestamp = get_datetime_from_utc_timestamp(get_timestamp_from_interval(tek.rolling_start_interval_number))
+    end_timestamp = get_datetime_from_utc_timestamp(get_timestamp_from_interval(tek.rolling_start_interval_number+tek.rolling_period))
+    if args.localtime:
+        start_timestamp = get_local_datetime(start_timestamp)
+        end_timestamp = get_local_datetime(end_timestamp)
+    print("%3d: TEK: %s, Transmission Risk Level: %d, Validity: %s - %s (%d, %d)" %
           (i, tek.key_data.hex(), tek.transmission_risk_level,
-           get_string_from_datetime(get_local_datetime(get_datetime_from_utc_timestamp(get_timestamp_from_interval(
-               tek.rolling_start_interval_number)))),
-           get_string_from_datetime(get_local_datetime(get_datetime_from_utc_timestamp(get_timestamp_from_interval(
-               tek.rolling_start_interval_number+tek.rolling_period)))),
+           get_string_from_datetime(start_timestamp),
+           get_string_from_datetime(end_timestamp),
            tek.rolling_start_interval_number, tek.rolling_period))
+
+    if read_contact_record_db:
+        rpi_key = derive_rpi_key(tek.key_data)
+        for diagnosis_rpi in create_list_of_rpis_for_interval_range(rpi_key, tek.rolling_start_interval_number,
+                                                                    tek.rolling_period):
+            if diagnosis_rpi in rpis_in_db.rpis_dict:
+                print("FOUND MATCH!")
+                aem_key = derive_aem_key(tek.key_data)
+                interval = get_interval_number_from_rpi(diagnosis_rpi, rpi_key)
+                interval_timestamp1 = get_datetime_from_utc_timestamp(get_timestamp_from_interval(interval))
+                interval_timestamp2 = get_datetime_from_utc_timestamp(get_timestamp_from_interval(interval+1))
+                if args.localtime:
+                    interval_timestamp1 = get_local_datetime(interval_timestamp1)
+                    interval_timestamp2 = get_local_datetime(interval_timestamp2)
+                print("RPI Validity:", get_string_from_datetime(interval_timestamp1),
+                      "-", get_string_from_datetime(interval_timestamp2),
+                      "(Interval number: %d," % interval,
+                      "RPI: %s)" % diagnosis_rpi.hex())
+
+                aem_key = derive_aem_key(tek.key_data)
+                day = rpis_in_db.rpis_dict[diagnosis_rpi]
+                # each "key" entry in the LevelDB has 18 bytes: 2 bytes "day" and 16 bytes "rpi"
+                dbkey = struct.pack(">H16s", day, diagnosis_rpi)
+                dbvalue = contactrecord_db.get(dbkey)
+                # each "value" entry is a ProtocolBuffer-encoded message, length at least 1
+                contact_records = lib.contact_records_pb2.ContactRecords()
+                contact_records.ParseFromString(dbvalue)
+                for scanrecord in contact_records.scanrecord:
+                    metadata = decrypt_aem(aem_key, scanrecord.aem, diagnosis_rpi)
+                    if metadata[0] == 0x40:
+                        tx_power = struct.unpack_from("b", metadata, 1)[0]  # signed char
+                    else:
+                        tx_power = 0
+                        print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
+
+                    sr_timestamp = get_datetime_from_utc_timestamp(scanrecord.timestamp)
+                    if args.localtime:
+                        sr_timestamp = get_local_datetime(sr_timestamp)
+                    attenuation = tx_power-scanrecord.rssi
+                    print(get_string_from_datetime(sr_timestamp),
+                          "Attenuation: %ddB" % attenuation,
+                          "(RSSI: %ddBm, AEM: %s, Metadata: % s)" % (scanrecord.rssi, scanrecord.aem.hex(), metadata.hex()))
+                    if args.short:
+                        print("(...)")
+                        break
 
     if read_rpi_file:
         for diagnosis_rpi in create_list_of_rpis_for_interval_range(derive_rpi_key(tek.key_data),
                                                                     tek.rolling_start_interval_number, tek.rolling_period):
-            # print(diagnosis_rpi, end='')
             if diagnosis_rpi in scanned_rpis.rpis_dict:
                 print("FOUND MATCH!")
                 aem_key = derive_aem_key(tek.key_data)
@@ -78,4 +145,9 @@ for tek in dk.get_keys():
                     else:
                         print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
                     print()
-        # print()
+                    if args.short:
+                        print("(...)")
+                        break
+
+if read_contact_record_db:
+    contactrecord_db.close()

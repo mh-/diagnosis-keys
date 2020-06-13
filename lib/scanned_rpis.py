@@ -46,4 +46,4 @@ class ScannedRPIs:
                     self.rpis_dict[rpi.rpi] = existing_entries
                 else:
                     self.rpis_dict[rpi.rpi] = [rpi]
-        # print(self.rpis)
+        # print(self.rpis_dict)

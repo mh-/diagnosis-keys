@@ -39,6 +39,13 @@ def create_list_of_rpis_for_interval_range(rpi_key, interval_number, interval_co
     return rpis
 
 
+def get_interval_number_from_rpi(rpi, rpi_key):
+    cipher = AES.new(rpi_key, AES.MODE_ECB)
+    padded_data = cipher.decrypt(rpi)
+    assert(padded_data[0:12] == "EN-RPI".encode("UTF-8") + bytes([0x00] * 6))
+    return struct.unpack("<I", padded_data[-4:])[0]
+
+
 def decrypt_aem(aem_key, aem, rpi):
     cipher = AES.new(aem_key, AES.MODE_CTR, nonce=bytes(0), initial_value=rpi)
     return cipher.decrypt(bytes(aem))

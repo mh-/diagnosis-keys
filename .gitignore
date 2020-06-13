@@ -3,4 +3,7 @@ venv/*
 __pycache__
 TemporaryExposureKeyExport.proto
 testExport*.zip
+*.zip
 *.csv
+app_contact-tracing-*
+*.tar.gz
