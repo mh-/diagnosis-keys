@@ -7,3 +7,6 @@ testExport*.zip
 *.csv
 app_contact-tracing-*
 *.tar.gz
+*.ods*
+*.bin
+*.sig

@@ -9,6 +9,8 @@ import argparse
 import plyvel
 import struct
 import lib.contact_records_pb2
+from lib.diagnosis_key import DiagnosisKey
+from lib.count_users import count_users
 
 parser = argparse.ArgumentParser(description="Exposure Notification Diagnosis Key Parser.",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -22,6 +24,8 @@ parser.add_argument("-s", "--short", action="store_true",
                     help="show only one scan per match")
 parser.add_argument("-l", "--localtime", action="store_true",
                     help="display timestamps in local time (otherwise the default is UTC)")
+parser.add_argument("-u", "--usercount", action="store_true",
+                    help="count the number of users who submitted Diagnosis Keys")
 args = parser.parse_args()
 
 dk_file_name = args.diagnosiskeys
@@ -60,6 +64,8 @@ print("- Batch: %d of %d" % (dk.get_batch_num(), dk.get_batch_size()))
 for signature_info in dk.get_signature_infos():
     print("- Signature Info:")
     print(signature_info)
+
+dk_list = []
 
 print("Diagnosis Keys:")
 i = 0
@@ -149,5 +155,11 @@ for tek in dk.get_keys():
                         print("(...)")
                         break
 
+    if args.usercount:
+        dk_list.append(DiagnosisKey(tek.key_data, tek.rolling_start_interval_number, tek.rolling_period, tek.transmission_risk_level))
+
 if read_contact_record_db:
     contactrecord_db.close()
+
+if args.usercount:
+    count_users(dk_list)
