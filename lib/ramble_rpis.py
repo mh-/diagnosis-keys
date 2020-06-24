@@ -1,19 +1,6 @@
 import sqlite3
 from lib.conversions import get_datetime_from_utc_timestamp
-
-
-class RPIEntry:
-    def __init__(self, start_time, end_time, rpi, aem, rssi, bdaddr, lat=None, lon=None, altitude=None, speed=None):
-        self.start_time = start_time
-        self.end_time = end_time
-        self.rpi = rpi
-        self.aem = aem
-        self.rssi = rssi
-        self.bdaddr = bdaddr
-        self.lat = lat
-        self.lon = lon
-        self.altitude = altitude
-        self.speed = speed
+from lib.scanned_rpis import RPIEntry
 
 
 class RambleRPIs:
