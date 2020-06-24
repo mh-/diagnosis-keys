@@ -10,6 +10,9 @@ def count_users(diagnosis_key_list):
 
     user_days = []
 
+    # First search for 'invalid' TRL profiles, caused by old Android apps
+    # (before this fix was released: https://github.com/corona-warn-app/cwa-app-android/pull/679)
+
     num_old_android_apps = 0
     top_level_dks = [dk for dk in diagnosis_key_list if dk.start_interval == latest_interval]
     for dk in top_level_dks:
@@ -38,6 +41,8 @@ def count_users(diagnosis_key_list):
         user_days.append(days)
         num_old_android_apps += 1
 
+    # Now search for 'standard' TRL profiles
+
     top_level_dks = [dk for dk in diagnosis_key_list if dk.start_interval == latest_interval]
     for dk in top_level_dks:
         days = 0
@@ -55,7 +60,6 @@ def count_users(diagnosis_key_list):
                 diagnosis_key_list.remove(next_dk)
                 days += 1
         user_days.append(days)
-
 
     reduced_users = len(user_days) // 10
     print("%d user(s) found." % reduced_users)
