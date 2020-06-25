@@ -88,3 +88,20 @@ def count_users(diagnosis_key_list):
     if num_old_android_apps > 0:
         print("Old Android app used by %d user(s)." % (num_old_android_apps // 10))
     print("%d keys not parsed (%d without padding)." % (len(diagnosis_key_list), len(diagnosis_key_list) // 10))
+
+    # print statistics / https://github.com/corona-warn-app/cwa-documentation/issues/258#issuecomment-649007240
+    print("%d / " % reduced_users, end='')
+    comma = False
+    days = 0
+    for count in reduced_days_count:
+        if count > 0:
+            if days > 0:
+                if not comma:
+                    comma = True
+                else:
+                    print(", ", end='')
+                print("%d*%d" % (count, days), end='')
+        days += 1
+    if num_old_android_apps > 0:
+        print(" (%d old Android app(s))" % (num_old_android_apps // 10), end='')
+    print()
