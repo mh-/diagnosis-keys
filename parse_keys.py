@@ -2,6 +2,7 @@
 
 from lib.diagnosis_keys import *
 from lib.scanned_rpis import *
+from lib.ramble_rpis import *
 from lib.rpis_in_db import *
 from lib.conversions import *
 from lib.crypto import *
@@ -20,6 +21,8 @@ parser.add_argument("-c", "--contactrecords", type=str, default="",
                     help="directory name of a contact record LevelDB (e.g. app_contact-tracing-contact-record-db/)")
 parser.add_argument("-r", "--rpis", type=str, default="",
                     help="file name of a Scanned RPIs .csv file")
+parser.add_argument("--ramble_rpis", type=str, default="",
+                    help="file name of a RamBLE sqlite file")
 parser.add_argument("-s", "--short", action="store_true",
                     help="show only one scan per match")
 parser.add_argument("-l", "--localtime", action="store_true",
@@ -30,7 +33,9 @@ args = parser.parse_args()
 
 dk_file_name = args.diagnosiskeys
 rpi_file_name = args.rpis
+ramble_file_name = args.ramble_rpis
 read_rpi_file = (rpi_file_name != "")
+read_ramble_file = (ramble_file_name != "")
 contactrecord_dir_name = args.contactrecords
 read_contact_record_db = (contactrecord_dir_name != "")
 
@@ -50,6 +55,11 @@ scanned_rpis = None
 if read_rpi_file:
     scanned_rpis = ScannedRPIs(rpi_file_name)
     print("File '%s' read." % rpi_file_name)
+
+ramble_rpis = None
+if read_ramble_file:
+    ramble_rpis = RambleRPIs(ramble_file_name)
+    print("File '%s' read." % ramble_file_name)
 
 start_timestamp = dk.get_upload_start_timestamp()
 end_timestamp = dk.get_upload_end_timestamp()
@@ -148,6 +158,34 @@ for tek in dk.get_keys():
                         tx_power = struct.unpack_from("b", metadata, 1)[0]  # signed char
                         print("--> TX Power: %d dBm --> RF attenuation: %d dB" %
                               (tx_power, tx_power-scanned_rpi_entry.rssi), end='')
+                    else:
+                        print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
+                    print()
+                    if args.short:
+                        print("(...)")
+                        break
+
+    if read_ramble_file:
+        for diagnosis_rpi in create_list_of_rpis_for_interval_range(derive_rpi_key(tek.key_data),
+                                                                    tek.rolling_start_interval_number, tek.rolling_period):
+            if diagnosis_rpi in ramble_rpis.rpis_dict:
+                print("FOUND MATCH!")
+                aem_key = derive_aem_key(tek.key_data)
+                ramble_rpi_entries = ramble_rpis.rpis_dict[diagnosis_rpi]
+                for ramble_rpi_entry in ramble_rpi_entries:
+                    metadata = decrypt_aem(aem_key, ramble_rpi_entry.aem, diagnosis_rpi)
+                    print("Timeframe: %s - %s (%d seconds), RSSI: %d dBm, LAT, LON, altitude, speed: %s, %s, %s, %s" %
+                          (get_string_from_datetime(get_local_datetime(ramble_rpi_entry.start_time)),
+                           get_string_from_datetime(get_local_datetime(ramble_rpi_entry.end_time)),
+                           (ramble_rpi_entry.end_time-ramble_rpi_entry.start_time).total_seconds(),
+                           ramble_rpi_entry.rssi,
+                           ramble_rpi_entry.lat, ramble_rpi_entry.lon,
+                           ramble_rpi_entry.altitude, ramble_rpi_entry.speed))
+                    print("Decrypted metadata: %s " % metadata.hex(), end='')
+                    if metadata[0] == 0x40:
+                        tx_power = struct.unpack_from("b", metadata, 1)[0]  # signed char
+                        print("--> TX Power: %d dBm --> RF attenuation: %d dB" %
+                              (tx_power, tx_power-ramble_rpi_entry.rssi), end='')
                     else:
                         print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
                     print()
