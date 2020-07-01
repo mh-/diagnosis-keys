@@ -1,11 +1,11 @@
 trl_profile = [5, 6, 8, 8, 8, 5, 3, 1, 1, 1, 1, 1, 1, 1]  # 0: today, 1: yesterday, ...
 
 
-def count_users(diagnosis_key_list):
+def count_users(diagnosis_key_list, multiplier=10):
     print("Parsing the Diagnosis Key list, counting unique users...")
-    print("Length: %d keys (%d without padding)" % (len(diagnosis_key_list), len(diagnosis_key_list) // 10))
-    if len(diagnosis_key_list) % 10 != 0:
-        print("WARNING: Apparently the list is not padded by 10!")
+    print("Length: %d keys (%d without padding)" % (len(diagnosis_key_list), len(diagnosis_key_list) // multiplier))
+    if len(diagnosis_key_list) % multiplier != 0:
+        print("WARNING: Apparently the list is not padded by %d!" % multiplier)
 
     user_days = []
     num_old_android_apps = 0
@@ -68,13 +68,13 @@ def count_users(diagnosis_key_list):
                         days += 1
                 user_days.append(days)
 
-    reduced_users = len(user_days) // 10
+    reduced_users = len(user_days) // multiplier
     print("%d user(s) found." % reduced_users)
 
     days_count = [0] * 15
     for entry in user_days:
         days_count[entry] += 1
-    reduced_days_count = [days // 10 for days in days_count]
+    reduced_days_count = [days // multiplier for days in days_count]
     print("They submitted these numbers of keys:")
     days = 0
     for count in reduced_days_count:
@@ -86,8 +86,8 @@ def count_users(diagnosis_key_list):
         days += 1
 
     if num_old_android_apps > 0:
-        print("Old Android app used by %d user(s)." % (num_old_android_apps // 10))
-    print("%d keys not parsed (%d without padding)." % (len(diagnosis_key_list), len(diagnosis_key_list) // 10))
+        print("Old Android app used by %d user(s)." % (num_old_android_apps // multiplier))
+    print("%d keys not parsed (%d without padding)." % (len(diagnosis_key_list), len(diagnosis_key_list) // multiplier))
 
     # print statistics / https://github.com/corona-warn-app/cwa-documentation/issues/258#issuecomment-649007240
     print("%d / " % reduced_users, end='')
@@ -103,5 +103,5 @@ def count_users(diagnosis_key_list):
                 print("%d*%d" % (count, days), end='')
         days += 1
     if num_old_android_apps > 0:
-        print(" (%d old Android app(s))" % (num_old_android_apps // 10), end='')
+        print(" (%d old Android app(s))" % (num_old_android_apps // multiplier), end='')
     print()
