@@ -62,7 +62,7 @@ def count_users(diagnosis_key_list, multiplier=10, auto_multiplier_detect=False)
                     diagnosis_key_list.remove(dk)
                     days = 1
                     interval = latest_interval
-                    while days < len(trl_profile):
+                    while days < len(trl_profile)-1:
                         interval -= 144
                         next_dk = next((dk_entry for dk_entry in diagnosis_key_list
                                         if (dk_entry.start_interval == interval) and
