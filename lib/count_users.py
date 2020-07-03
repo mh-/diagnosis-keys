@@ -15,6 +15,9 @@ def count_users(diagnosis_key_list, multiplier=10, auto_multiplier_detect=False)
     user_days = []
     num_old_android_apps = 0
 
+    if len(diagnosis_key_list) > 0:
+        latest_interval = max(dk.start_interval for dk in diagnosis_key_list)
+
     for i in [0, 1]:
         # do this twice, because if keys are distributed in the morning,
         # they could include yesterday's submissions
@@ -23,7 +26,6 @@ def count_users(diagnosis_key_list, multiplier=10, auto_multiplier_detect=False)
         # (before this fix was released: https://github.com/corona-warn-app/cwa-app-android/pull/679)
 
         if len(diagnosis_key_list) > 0:
-            latest_interval = max(dk.start_interval for dk in diagnosis_key_list)
             top_level_dks = [dk for dk in diagnosis_key_list if dk.start_interval == latest_interval]
             for dk in top_level_dks:
                 try:
@@ -54,7 +56,6 @@ def count_users(diagnosis_key_list, multiplier=10, auto_multiplier_detect=False)
         # Now search for 'standard' TRL profiles
 
         if len(diagnosis_key_list) > 0:
-            latest_interval = max(dk.start_interval for dk in diagnosis_key_list)
             top_level_dks = [dk for dk in diagnosis_key_list if dk.start_interval == latest_interval]
             for dk in top_level_dks:
                 days = 0
@@ -72,6 +73,8 @@ def count_users(diagnosis_key_list, multiplier=10, auto_multiplier_detect=False)
                         diagnosis_key_list.remove(next_dk)
                         days += 1
                 user_days.append(days)
+
+        latest_interval -= 144
 
     days_count = [0] * 15
     for entry in user_days:
