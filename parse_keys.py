@@ -33,6 +33,8 @@ parser.add_argument("-m", "--multiplier", type=int, default=10,
                     help="padding multiplier (RANDOM_KEY_PADDING_MULTIPLIER as set on cwa-server)")
 parser.add_argument("-a", "--auto-multiplier", action="store_true",
                     help="automatically detect the multiplier (range 1..10)")
+parser.add_argument("-n", "--new-android-apps-only", action="store_true",
+                    help="assume that no 'old' Android apps uploaded keys")
 args = parser.parse_args()
 
 dk_file_name = args.diagnosiskeys
@@ -204,4 +206,5 @@ if read_contact_record_db:
     contactrecord_db.close()
 
 if args.usercount:
-    count_users(dk_list, multiplier = args.multiplier, auto_multiplier_detect = args.auto_multiplier)
+    count_users(dk_list, multiplier = args.multiplier, auto_multiplier_detect = args.auto_multiplier,
+                new_android_apps_only = args.new_android_apps_only)

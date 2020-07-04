@@ -1,7 +1,8 @@
 trl_profile = [5, 6, 8, 8, 8, 5, 3, 1, 1, 1, 1, 1, 1, 1]  # 0: today, 1: yesterday, ...
 
 
-def count_users(diagnosis_key_list, multiplier=10, auto_multiplier_detect=False):
+def count_users(diagnosis_key_list, multiplier=10, auto_multiplier_detect=False,
+                new_android_apps_only=False):
     print("Parsing the Diagnosis Key list, counting unique users...")
     original_len = len(diagnosis_key_list)
     if not auto_multiplier_detect:
@@ -11,47 +12,53 @@ def count_users(diagnosis_key_list, multiplier=10, auto_multiplier_detect=False)
     else:
         print("Length: %d keys" % original_len)
 
-
     user_days = []
     num_old_android_apps = 0
 
     if len(diagnosis_key_list) > 0:
         latest_interval = max(dk.start_interval for dk in diagnosis_key_list)
+        min_interval = latest_interval - 14*144
 
-    for i in [0, 1]:
+    if not new_android_apps_only:
+        search_range = [0, 1]
+    else:
+        search_range = range(0, 15)
+
+    for i in search_range:
         # do this twice, because if keys are distributed in the morning,
         # they could include yesterday's submissions
 
-        # First search for 'invalid' TRL profiles, caused by old Android apps
-        # (before this fix was released: https://github.com/corona-warn-app/cwa-app-android/pull/679)
+        if not new_android_apps_only:
+            # First search for 'invalid' TRL profiles, caused by old Android apps
+            # (before this fix was released: https://github.com/corona-warn-app/cwa-app-android/pull/679)
 
-        if len(diagnosis_key_list) > 0:
-            top_level_dks = [dk for dk in diagnosis_key_list if dk.start_interval == latest_interval]
-            for dk in top_level_dks:
-                try:
-                    pos = trl_profile[2:].index(dk.transmission_risk_level)+2
-                except ValueError:
-                    continue
-                diagnosis_key_list.remove(dk)
-                days = 1
-                interval = latest_interval
-                while pos > 1:
-                    interval -= 144
-                    next_dk = next((dk_entry for dk_entry in diagnosis_key_list
-                                    if (dk_entry.start_interval == interval) and
-                                    (dk_entry.transmission_risk_level == trl_profile[pos-1])), None)
-                    if (next_dk is None) and (trl_profile[pos] == 8):
-                        pos += 1
+            if len(diagnosis_key_list) > 0:
+                top_level_dks = [dk for dk in diagnosis_key_list if dk.start_interval == latest_interval]
+                for dk in top_level_dks:
+                    try:
+                        pos = trl_profile[2:].index(dk.transmission_risk_level)+2
+                    except ValueError:
+                        continue
+                    diagnosis_key_list.remove(dk)
+                    days = 1
+                    interval = latest_interval
+                    while pos > 1:
+                        interval -= 144
                         next_dk = next((dk_entry for dk_entry in diagnosis_key_list
                                         if (dk_entry.start_interval == interval) and
-                                        (dk_entry.transmission_risk_level == trl_profile[pos - 1])), None)
-                    if next_dk is None:
-                        break
-                    diagnosis_key_list.remove(next_dk)
-                    days += 1
-                    pos -= 1
-                user_days.append(days)
-                num_old_android_apps += 1
+                                        (dk_entry.transmission_risk_level == trl_profile[pos-1])), None)
+                        if (next_dk is None) and (trl_profile[pos] == 8):
+                            pos += 1
+                            next_dk = next((dk_entry for dk_entry in diagnosis_key_list
+                                            if (dk_entry.start_interval == interval) and
+                                            (dk_entry.transmission_risk_level == trl_profile[pos - 1])), None)
+                        if next_dk is None:
+                            break
+                        diagnosis_key_list.remove(next_dk)
+                        days += 1
+                        pos -= 1
+                    user_days.append(days)
+                    num_old_android_apps += 1
 
         # Now search for 'standard' TRL profiles
 
@@ -65,9 +72,22 @@ def count_users(diagnosis_key_list, multiplier=10, auto_multiplier_detect=False)
                     interval = latest_interval
                     while days < len(trl_profile)-1:
                         interval -= 144
-                        next_dk = next((dk_entry for dk_entry in diagnosis_key_list
-                                        if (dk_entry.start_interval == interval) and
-                                        (dk_entry.transmission_risk_level == trl_profile[days+1])), None)
+                        if not new_android_apps_only:
+                            next_dk = next((dk_entry for dk_entry in diagnosis_key_list
+                                            if (dk_entry.start_interval == interval) and
+                                               (dk_entry.transmission_risk_level == trl_profile[days+1])),
+                                           None)
+                        else:  # new_android_apps_only
+                            next_dk = None
+                            while interval >= min_interval:
+                                next_dk = next((dk_entry for dk_entry in diagnosis_key_list
+                                                if (dk_entry.start_interval == interval) and
+                                                (dk_entry.transmission_risk_level == trl_profile[days + 1])),
+                                               None)
+                                if next_dk is not None:
+                                    break
+                                interval -= 144
+
                         if next_dk is None:
                             break
                         diagnosis_key_list.remove(next_dk)
