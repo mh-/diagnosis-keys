@@ -83,124 +83,141 @@ for signature_info in dk.get_signature_infos():
 
 dk_list = []
 
-print("Diagnosis Keys:")
-i = 0
-for tek in dk.get_keys():
-    i += 1
-    start_timestamp = get_datetime_from_utc_timestamp(get_timestamp_from_interval(tek.rolling_start_interval_number))
-    end_timestamp = get_datetime_from_utc_timestamp(get_timestamp_from_interval(tek.rolling_start_interval_number+tek.rolling_period))
-    if args.localtime:
-        start_timestamp = get_local_datetime(start_timestamp)
-        end_timestamp = get_local_datetime(end_timestamp)
-    print("%3d: TEK: %s, Transmission Risk Level: %d, Validity: %s - %s (%d, %d)" %
-          (i, tek.key_data.hex(), tek.transmission_risk_level,
-           get_string_from_datetime(start_timestamp),
-           get_string_from_datetime(end_timestamp),
-           tek.rolling_start_interval_number, tek.rolling_period))
+keys = None
+for i in [0, 1]:
+    if i == 0:
+        keys = dk.get_keys()
+        print("Diagnosis Keys:")
+    elif i == 1:
+        keys = dk.get_revised_keys()
+        print("\nRevised Diagnosis Keys:")
+    if len(keys) == 0:
+        print("(none)")
+    i = 0
+    for tek in keys:
+        i += 1
+        start_timestamp = get_datetime_from_utc_timestamp(get_timestamp_from_interval(tek.rolling_start_interval_number))
+        end_timestamp = get_datetime_from_utc_timestamp(get_timestamp_from_interval(tek.rolling_start_interval_number+tek.rolling_period))
+        if args.localtime:
+            start_timestamp = get_local_datetime(start_timestamp)
+            end_timestamp = get_local_datetime(end_timestamp)
+        print("%3d: TEK: %s, Transmission Risk Level: %s, Validity: %s - %s (%d, %d)" %
+              (i, tek.key_data.hex(), tek.transmission_risk_level,
+               get_string_from_datetime(start_timestamp),
+               get_string_from_datetime(end_timestamp),
+               tek.rolling_start_interval_number, tek.rolling_period),
+              end='')
+        if tek.HasField("report_type"):
+            field_types = ["UNKNOWN", "CONFIRMED_TEST", "CONFIRMED_CLINICAL_DIAGNOSIS",
+                           "SELF_REPORT", "RECURSIVE", "REVOKED"]
+            print (", Report Type: %s" % field_types[tek.report_type], end='')
+        if tek.HasField("days_since_onset_of_symptoms"):
+            print (", Days since onset of symptoms: %d" % tek.days_since_onset_of_symptoms, end='')
+        print()
 
-    if read_contact_record_db:
-        rpi_key = derive_rpi_key(tek.key_data)
-        for diagnosis_rpi in create_list_of_rpis_for_interval_range(rpi_key, tek.rolling_start_interval_number,
-                                                                    tek.rolling_period):
-            if diagnosis_rpi in rpis_in_db.rpis_dict:
-                print("FOUND MATCH!")
-                aem_key = derive_aem_key(tek.key_data)
-                interval = get_interval_number_from_rpi(diagnosis_rpi, rpi_key)
-                interval_timestamp1 = get_datetime_from_utc_timestamp(get_timestamp_from_interval(interval))
-                interval_timestamp2 = get_datetime_from_utc_timestamp(get_timestamp_from_interval(interval+1))
-                if args.localtime:
-                    interval_timestamp1 = get_local_datetime(interval_timestamp1)
-                    interval_timestamp2 = get_local_datetime(interval_timestamp2)
-                print("RPI Validity:", get_string_from_datetime(interval_timestamp1),
-                      "-", get_string_from_datetime(interval_timestamp2),
-                      "(Interval number: %d," % interval,
-                      "RPI: %s)" % diagnosis_rpi.hex())
-
-                aem_key = derive_aem_key(tek.key_data)
-                day = rpis_in_db.rpis_dict[diagnosis_rpi]
-                # each "key" entry in the LevelDB has 18 bytes: 2 bytes "day" and 16 bytes "rpi"
-                dbkey = struct.pack(">H16s", day, diagnosis_rpi)
-                dbvalue = contactrecord_db.get(dbkey)
-                # each "value" entry is a ProtocolBuffer-encoded message, length at least 1
-                contact_records = lib.contact_records_pb2.ContactRecords()
-                contact_records.ParseFromString(dbvalue)
-                for scanrecord in contact_records.scanrecord:
-                    metadata = decrypt_aem(aem_key, scanrecord.aem, diagnosis_rpi)
-                    if metadata[0] == 0x40:
-                        tx_power = struct.unpack_from("b", metadata, 1)[0]  # signed char
-                    else:
-                        tx_power = 0
-                        print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
-
-                    sr_timestamp = get_datetime_from_utc_timestamp(scanrecord.timestamp)
+        if read_contact_record_db:
+            rpi_key = derive_rpi_key(tek.key_data)
+            for diagnosis_rpi in create_list_of_rpis_for_interval_range(rpi_key, tek.rolling_start_interval_number,
+                                                                        tek.rolling_period):
+                if diagnosis_rpi in rpis_in_db.rpis_dict:
+                    print("FOUND MATCH!")
+                    aem_key = derive_aem_key(tek.key_data)
+                    interval = get_interval_number_from_rpi(diagnosis_rpi, rpi_key)
+                    interval_timestamp1 = get_datetime_from_utc_timestamp(get_timestamp_from_interval(interval))
+                    interval_timestamp2 = get_datetime_from_utc_timestamp(get_timestamp_from_interval(interval+1))
                     if args.localtime:
-                        sr_timestamp = get_local_datetime(sr_timestamp)
-                    attenuation = tx_power-scanrecord.rssi
-                    print(get_string_from_datetime(sr_timestamp),
-                          "Attenuation: %ddB" % attenuation,
-                          "(RSSI: %ddBm, AEM: %s, Metadata: % s)" % (scanrecord.rssi, scanrecord.aem.hex(), metadata.hex()))
-                    if args.short:
-                        print("(...)")
-                        break
+                        interval_timestamp1 = get_local_datetime(interval_timestamp1)
+                        interval_timestamp2 = get_local_datetime(interval_timestamp2)
+                    print("RPI Validity:", get_string_from_datetime(interval_timestamp1),
+                          "-", get_string_from_datetime(interval_timestamp2),
+                          "(Interval number: %d," % interval,
+                          "RPI: %s)" % diagnosis_rpi.hex())
 
-    if read_rpi_file:
-        for diagnosis_rpi in create_list_of_rpis_for_interval_range(derive_rpi_key(tek.key_data),
-                                                                    tek.rolling_start_interval_number, tek.rolling_period):
-            if diagnosis_rpi in scanned_rpis.rpis_dict:
-                print("FOUND MATCH!")
-                aem_key = derive_aem_key(tek.key_data)
-                scanned_rpi_entries = scanned_rpis.rpis_dict[diagnosis_rpi]
-                for scanned_rpi_entry in scanned_rpi_entries:
-                    metadata = decrypt_aem(aem_key, scanned_rpi_entry.aem, diagnosis_rpi)
-                    print("Timeframe: %s - %s (%d seconds), RSSI: %d dBm, LAT, LON, altitude, speed: %s, %s, %s, %s" %
-                          (get_string_from_datetime(get_local_datetime(scanned_rpi_entry.start_time)),
-                           get_string_from_datetime(get_local_datetime(scanned_rpi_entry.end_time)),
-                           (scanned_rpi_entry.end_time-scanned_rpi_entry.start_time).total_seconds(),
-                           scanned_rpi_entry.rssi,
-                           scanned_rpi_entry.lat, scanned_rpi_entry.lon,
-                           scanned_rpi_entry.altitude, scanned_rpi_entry.speed))
-                    print("Decrypted metadata: %s " % metadata.hex(), end='')
-                    if metadata[0] == 0x40:
-                        tx_power = struct.unpack_from("b", metadata, 1)[0]  # signed char
-                        print("--> TX Power: %d dBm --> RF attenuation: %d dB" %
-                              (tx_power, tx_power-scanned_rpi_entry.rssi), end='')
-                    else:
-                        print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
-                    print()
-                    if args.short:
-                        print("(...)")
-                        break
+                    aem_key = derive_aem_key(tek.key_data)
+                    day = rpis_in_db.rpis_dict[diagnosis_rpi]
+                    # each "key" entry in the LevelDB has 18 bytes: 2 bytes "day" and 16 bytes "rpi"
+                    dbkey = struct.pack(">H16s", day, diagnosis_rpi)
+                    dbvalue = contactrecord_db.get(dbkey)
+                    # each "value" entry is a ProtocolBuffer-encoded message, length at least 1
+                    contact_records = lib.contact_records_pb2.ContactRecords()
+                    contact_records.ParseFromString(dbvalue)
+                    for scanrecord in contact_records.scanrecord:
+                        metadata = decrypt_aem(aem_key, scanrecord.aem, diagnosis_rpi)
+                        if metadata[0] == 0x40:
+                            tx_power = struct.unpack_from("b", metadata, 1)[0]  # signed char
+                        else:
+                            tx_power = 0
+                            print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
 
-    if read_ramble_file:
-        for diagnosis_rpi in create_list_of_rpis_for_interval_range(derive_rpi_key(tek.key_data),
-                                                                    tek.rolling_start_interval_number, tek.rolling_period):
-            if diagnosis_rpi in ramble_rpis.rpis_dict:
-                print("FOUND MATCH!")
-                aem_key = derive_aem_key(tek.key_data)
-                ramble_rpi_entries = ramble_rpis.rpis_dict[diagnosis_rpi]
-                for ramble_rpi_entry in ramble_rpi_entries:
-                    metadata = decrypt_aem(aem_key, ramble_rpi_entry.aem, diagnosis_rpi)
-                    print("Timeframe: %s - %s (%d seconds), RSSI: %d dBm, LAT, LON, altitude, speed: %s, %s, %s, %s" %
-                          (get_string_from_datetime(get_local_datetime(ramble_rpi_entry.start_time)),
-                           get_string_from_datetime(get_local_datetime(ramble_rpi_entry.end_time)),
-                           (ramble_rpi_entry.end_time-ramble_rpi_entry.start_time).total_seconds(),
-                           ramble_rpi_entry.rssi,
-                           ramble_rpi_entry.lat, ramble_rpi_entry.lon,
-                           ramble_rpi_entry.altitude, ramble_rpi_entry.speed))
-                    print("Decrypted metadata: %s " % metadata.hex(), end='')
-                    if metadata[0] == 0x40:
-                        tx_power = struct.unpack_from("b", metadata, 1)[0]  # signed char
-                        print("--> TX Power: %d dBm --> RF attenuation: %d dB" %
-                              (tx_power, tx_power-ramble_rpi_entry.rssi), end='')
-                    else:
-                        print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
-                    print()
-                    if args.short:
-                        print("(...)")
-                        break
+                        sr_timestamp = get_datetime_from_utc_timestamp(scanrecord.timestamp)
+                        if args.localtime:
+                            sr_timestamp = get_local_datetime(sr_timestamp)
+                        attenuation = tx_power-scanrecord.rssi
+                        print(get_string_from_datetime(sr_timestamp),
+                              "Attenuation: %ddB" % attenuation,
+                              "(RSSI: %ddBm, AEM: %s, Metadata: % s)" % (scanrecord.rssi, scanrecord.aem.hex(), metadata.hex()))
+                        if args.short:
+                            print("(...)")
+                            break
 
-    if args.usercount:
-        dk_list.append(DiagnosisKey(tek.key_data, tek.rolling_start_interval_number, tek.rolling_period, tek.transmission_risk_level))
+        if read_rpi_file:
+            for diagnosis_rpi in create_list_of_rpis_for_interval_range(derive_rpi_key(tek.key_data),
+                                                                        tek.rolling_start_interval_number, tek.rolling_period):
+                if diagnosis_rpi in scanned_rpis.rpis_dict:
+                    print("FOUND MATCH!")
+                    aem_key = derive_aem_key(tek.key_data)
+                    scanned_rpi_entries = scanned_rpis.rpis_dict[diagnosis_rpi]
+                    for scanned_rpi_entry in scanned_rpi_entries:
+                        metadata = decrypt_aem(aem_key, scanned_rpi_entry.aem, diagnosis_rpi)
+                        print("Timeframe: %s - %s (%d seconds), RSSI: %d dBm, LAT, LON, altitude, speed: %s, %s, %s, %s" %
+                              (get_string_from_datetime(get_local_datetime(scanned_rpi_entry.start_time)),
+                               get_string_from_datetime(get_local_datetime(scanned_rpi_entry.end_time)),
+                               (scanned_rpi_entry.end_time-scanned_rpi_entry.start_time).total_seconds(),
+                               scanned_rpi_entry.rssi,
+                               scanned_rpi_entry.lat, scanned_rpi_entry.lon,
+                               scanned_rpi_entry.altitude, scanned_rpi_entry.speed))
+                        print("Decrypted metadata: %s " % metadata.hex(), end='')
+                        if metadata[0] == 0x40:
+                            tx_power = struct.unpack_from("b", metadata, 1)[0]  # signed char
+                            print("--> TX Power: %d dBm --> RF attenuation: %d dB" %
+                                  (tx_power, tx_power-scanned_rpi_entry.rssi), end='')
+                        else:
+                            print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
+                        print()
+                        if args.short:
+                            print("(...)")
+                            break
+
+        if read_ramble_file:
+            for diagnosis_rpi in create_list_of_rpis_for_interval_range(derive_rpi_key(tek.key_data),
+                                                                        tek.rolling_start_interval_number, tek.rolling_period):
+                if diagnosis_rpi in ramble_rpis.rpis_dict:
+                    print("FOUND MATCH!")
+                    aem_key = derive_aem_key(tek.key_data)
+                    ramble_rpi_entries = ramble_rpis.rpis_dict[diagnosis_rpi]
+                    for ramble_rpi_entry in ramble_rpi_entries:
+                        metadata = decrypt_aem(aem_key, ramble_rpi_entry.aem, diagnosis_rpi)
+                        print("Timeframe: %s - %s (%d seconds), RSSI: %d dBm, LAT, LON, altitude, speed: %s, %s, %s, %s" %
+                              (get_string_from_datetime(get_local_datetime(ramble_rpi_entry.start_time)),
+                               get_string_from_datetime(get_local_datetime(ramble_rpi_entry.end_time)),
+                               (ramble_rpi_entry.end_time-ramble_rpi_entry.start_time).total_seconds(),
+                               ramble_rpi_entry.rssi,
+                               ramble_rpi_entry.lat, ramble_rpi_entry.lon,
+                               ramble_rpi_entry.altitude, ramble_rpi_entry.speed))
+                        print("Decrypted metadata: %s " % metadata.hex(), end='')
+                        if metadata[0] == 0x40:
+                            tx_power = struct.unpack_from("b", metadata, 1)[0]  # signed char
+                            print("--> TX Power: %d dBm --> RF attenuation: %d dB" %
+                                  (tx_power, tx_power-ramble_rpi_entry.rssi), end='')
+                        else:
+                            print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
+                        print()
+                        if args.short:
+                            print("(...)")
+                            break
+
+        if args.usercount:
+            dk_list.append(DiagnosisKey(tek.key_data, tek.rolling_start_interval_number, tek.rolling_period, tek.transmission_risk_level))
 
 if read_contact_record_db:
     contactrecord_db.close()

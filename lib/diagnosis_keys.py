@@ -1,4 +1,4 @@
-import TemporaryExposureKeyExport_pb2
+import TemporaryExposureKeyExportV1_5_pb2
 from zipfile import ZipFile
 from lib.conversions import *
 
@@ -18,13 +18,16 @@ class DiagnosisKeys:
             print("ERROR: export.bin (extracted from %s) does not start with '%s'" % (file_name, header_str))
             exit(1)
 
-        self.diagnosis_keys_export_data = TemporaryExposureKeyExport_pb2.TemporaryExposureKeyExport()
+        self.diagnosis_keys_export_data = TemporaryExposureKeyExportV1_5_pb2.TemporaryExposureKeyExport()
         self.diagnosis_keys_export_data.ParseFromString(export_bin[len(header):])
 
         # print(tek_keys_export)
 
     def get_keys(self):
         return self.diagnosis_keys_export_data.keys
+
+    def get_revised_keys(self):  # new in V1.5
+        return self.diagnosis_keys_export_data.revised_keys
 
     def get_upload_start_timestamp(self):
         return get_datetime_from_utc_timestamp(self.diagnosis_keys_export_data.start_timestamp)

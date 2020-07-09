@@ -1,7 +1,7 @@
 .idea
 venv/*
 __pycache__
-TemporaryExposureKeyExport.proto
+TemporaryExposureKeyExport*.proto
 testExport*.zip
 *.zip
 *.csv
