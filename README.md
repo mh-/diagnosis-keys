@@ -61,3 +61,10 @@ RPI Validity: 2020-06-13 13:00:00 CEST - 2020-06-13 13:10:00 CEST (Interval numb
 2020-06-13 13:07:20 CEST Attenuation: 34dB (RSSI: -58dBm, AEM: 9be98c37, Metadata: 40e80000)
 (...)
 ```
+
+## Used by
+This tool is used by a number of CWA diagnosis key visualisation projects such as:
+
+- https://ctt.pfstr.de/
+- https://micb25.github.io/dka/
+
