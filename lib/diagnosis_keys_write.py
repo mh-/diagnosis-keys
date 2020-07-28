@@ -1,5 +1,5 @@
 import TemporaryExposureKeyExportV1_5_pb2
-from zipfile import ZipFile
+import zipfile
 import secrets
 from lib.conversions import *
 
@@ -39,7 +39,7 @@ class DiagnosisKeysWriter:
         export_bin = header + export_bin
         # print(export_bin)
 
-        zip_file = ZipFile(file_name, mode='w')
+        zip_file = zipfile.ZipFile(file_name, mode='w', compression=zipfile.ZIP_DEFLATED)
         zip_file.writestr("export.bin", export_bin)
 
     def add_key(self, key_data, trl, start, duration, report_type):
