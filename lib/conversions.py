@@ -8,8 +8,16 @@ def get_timestamp_from_interval(interval_number):
     return interval_number * interval_length_minutes * 60  # 60 seconds per minute
 
 
+def get_interval_from_utc_timestamp(utc_time_stamp):
+    return utc_time_stamp // (interval_length_minutes * 60)  # 60 seconds per minute
+
+
 def get_datetime_from_utc_timestamp(utc_timestamp):
     return datetime.datetime.utcfromtimestamp(utc_timestamp).replace(tzinfo=datetime.timezone.utc)
+
+
+def get_timestamp_from_utc_datetime(utc_datetime):
+    return int(datetime.datetime.timestamp(utc_datetime))
 
 
 def get_local_datetime(date_time):
