@@ -18,6 +18,10 @@ def count_users(diagnosis_key_list, multiplier=10, auto_multiplier_detect=False,
     if len(diagnosis_key_list) > 0:
         latest_interval = max(dk.start_interval for dk in diagnosis_key_list)
         min_interval = latest_interval - 14*144
+    else:
+        # no keys provided, skip user count
+        print("%d user(s) found." % 0)
+        return
 
     if not new_android_apps_only:
         search_range = [0, 1]
