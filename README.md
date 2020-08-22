@@ -1,7 +1,7 @@
 # diagnosis-keys
 Tools for working with Diagnosis Keys from the COVID-19 Exposure Notification / Corona-Warn-App system
 
-    Copyright (C) 2020  Michael Huebler
+    Copyright (C) 2020  Michael Huebler and other contributors
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published
