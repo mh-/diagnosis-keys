@@ -76,6 +76,7 @@ print("- Time window: %s - %s" % (get_string_from_datetime(start_timestamp),
                                   get_string_from_datetime(end_timestamp)))
 print("- Region: %s" % dk.get_region())
 print("- Batch: %d of %d" % (dk.get_batch_num(), dk.get_batch_size()))
+print("- # of keys in batch: %d" % len(dk.get_keys()))
 
 for signature_info in dk.get_signature_infos():
     print("- Signature Info:")

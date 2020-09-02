@@ -27,6 +27,7 @@ json_obj["timeWindowEnd"] = get_string_from_datetime(end_timestamp)
 json_obj["region"] = dk.get_region()
 json_obj["batchNum"] = dk.get_batch_num()
 json_obj["batchCount"] = dk.get_batch_size()
+json_obj["keyCount"] = len(dk.get_keys())
 
 json_obj["signatureInfos"] = dict()
 for signature_info in dk.get_signature_infos():
