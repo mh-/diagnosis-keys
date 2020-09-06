@@ -143,11 +143,11 @@ for i in [0, 1]:
                     contact_records.ParseFromString(dbvalue)
                     for scanrecord in contact_records.scanrecord:
                         metadata = decrypt_aem(aem_key, scanrecord.aem, diagnosis_rpi)
-                        if metadata[0] == 0x40:
+                        if metadata[0] >= 0x40:
                             tx_power = struct.unpack_from("b", metadata, 1)[0]  # signed char
                         else:
                             tx_power = 0
-                            print("--> WARNING: Expected metadata to start with 40, so this could be a false positive!")
+                            print("--> WARNING: Expected metadata to start with at least 0x40, so this could be a false positive!")
 
                         sr_timestamp = get_datetime_from_utc_timestamp(scanrecord.timestamp)
                         if args.localtime:
