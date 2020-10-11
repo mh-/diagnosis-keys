@@ -1,6 +1,6 @@
 # Count Users who reported keys using CWA 1.5ff
 # see https://github.com/mh-/diagnosis-keys/issues/12
-
+import math
 import sys
 from lib.conversions import get_datetime_from_utc_timestamp, get_timestamp_from_interval, tek_rolling_period
 
@@ -41,6 +41,10 @@ def count_users(diagnosis_key_list, padding_multiplier=5, auto_multiplier_detect
     for interval in range(min_interval, max_interval+1, tek_rolling_period):
         days_dict[interval] = [0, 0, 0, 0, 0, 0, 0, 0]  # number of entries for TRLs from 1 to 8
 
+    # detect padding multiplier
+    if auto_multiplier_detect:
+        multiplier_candidate_table = [0, 0, 0, 0, 0]  # 1, 2, 3, 4, 5
+
     # count number of TRLs for each day
     max_value = 0
     for dk in diagnosis_key_list:
@@ -59,21 +63,50 @@ def count_users(diagnosis_key_list, padding_multiplier=5, auto_multiplier_detect
     for trl in range(8):
         print("{num:{width}}".format(num=trl+1, width=max_value_width + 3), end='')
     print("   Sum:")
+    # for each day:
+    max_row_sum = 0
     for key in sorted(days_dict.keys(), reverse=True):
         print(get_datetime_from_utc_timestamp(get_timestamp_from_interval(key)).strftime("%Y-%m-%d: "), end='')
-        trl_sum = 0
+        row_sum = 0
         trl = 0
         for trl_num in days_dict[key]:
             print("{num:{width}}".format(num=trl_num, width=max_value_width + 3), end='')
-            trl_sum += trl_num
+            row_sum += trl_num
             trl += 1
             trl_sums[trl-1] += trl_num
-        print("  {num:{width}}".format(num=trl_sum, width=max_value_width + 2))
+            # detect padding multiplier
+            if auto_multiplier_detect:
+                for candidate in range(len(multiplier_candidate_table), 0, -1):
+                    if trl_num % candidate == 0:
+                        multiplier_candidate_table[candidate-1] += 1
+                        break
+        # print row sum:
+        print("  {num:{width}}".format(num=row_sum, width=max_value_width + 2))
+        if max_row_sum < row_sum:
+            max_row_sum = row_sum
 
+    # print column sum:
     total = 0
     print("Total:      ", end='')
-    for trl_sum in trl_sums:
-        print("{num:{width}}".format(num=trl_sum, width=max_value_width + 3), end='')
-        total += trl_sum
+    for row_sum in trl_sums:
+        print("{num:{width}}".format(num=row_sum, width=max_value_width + 3), end='')
+        total += row_sum
     print("  {num:{width}}".format(num=total, width=max_value_width + 2))
+    print()
 
+    # find padding_multiplier
+    if auto_multiplier_detect:
+        max_value = max(multiplier_candidate_table)
+        for candidate in range(len(multiplier_candidate_table), 0, -1):
+            if multiplier_candidate_table[candidate-1] == max_value:
+                padding_multiplier = candidate
+                break
+        print("Padding multiplier is probably: %d" % padding_multiplier)
+
+    # print results:
+    # column sum of TRL 6
+    old_user_count = math.ceil(trl_sums[6-1] / padding_multiplier)
+    # maximum row sum
+    new_user_count = math.ceil(max_row_sum / padding_multiplier)
+    print("Pre-V1.5 user count:  %d" % old_user_count)
+    print("Post-V1.5 user count: %d" % new_user_count)
