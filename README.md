@@ -82,4 +82,5 @@ This tool is used by a number of CWA diagnosis key visualisation projects such a
 
 - https://ctt.pfstr.de/
 - https://micb25.github.io/dka/
+- https://covid-19.sledilnik.org/ostanizdrav
 
