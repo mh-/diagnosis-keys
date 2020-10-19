@@ -29,7 +29,7 @@ parser.add_argument("-l", "--localtime", action="store_true",
                     help="display timestamps in local time (otherwise the default is UTC)")
 parser.add_argument("-u", "--usercount", action="store_true",
                     help="count the number of users who submitted Diagnosis Keys")
-parser.add_argument("-m", "--multiplier", type=int, default=10,
+parser.add_argument("-m", "--multiplier", type=int, default=1,
                     help="padding multiplier (RANDOM_KEY_PADDING_MULTIPLIER as set on cwa-server)")
 parser.add_argument("-a", "--auto-multiplier", action="store_true",
                     help="automatically detect the multiplier (range 1..10)")

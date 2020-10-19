@@ -14,7 +14,7 @@ parser.add_argument("-t", "--print-metadata", action="store_true",
                     help="print metadata from the Diagnosis Keys .zip file")
 parser.add_argument("-k", "--print-keys", action="store_true",
                     help="print all keys from the Diagnosis Keys .zip file")
-parser.add_argument("-m", "--multiplier", type=int, default=5,
+parser.add_argument("-m", "--multiplier", type=int, default=1,
                     help="padding multiplier (RANDOM_KEY_PADDING_MULTIPLIER as set on cwa-server)")
 parser.add_argument("-a", "--auto-multiplier", action="store_true",
                     help="automatically detect the multiplier (range 1..10)")
